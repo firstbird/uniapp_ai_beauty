@@ -10,7 +10,7 @@ class L2Norm extends tflayers.LayersModel {
     private nChannels: number;
     private scale: number;
     // private gamma: tf.Variable;
-	private gamma: tflayers.LayerVariable;
+	private gamma: tflayers.LayerVariable | undefined;
 
     constructor(nChannels: number = 256, scale: number = 10, axis: number = -1, gammaInit: string = 'zero', kwargs?: any) {
         super(kwargs);
@@ -34,7 +34,7 @@ class L2Norm extends tflayers.LayersModel {
     call(inputs: tf.Tensor | tf.Tensor[], kwargs?: any): tf.Tensor {
         const x = Array.isArray(inputs) ? inputs[0] : inputs;
         const norm = tf.sqrt(tf.sum(tf.square(x), this.axis, true)) as tf.Tensor;
-        const scaled = tf.div(x, norm).mul(this.gamma.read()) as tf.Tensor;
+        const scaled = tf.div(x, norm).mul(this.gamma!.read()) as tf.Tensor;
         return scaled;
     }
 

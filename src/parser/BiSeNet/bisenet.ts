@@ -87,13 +87,15 @@ function feature_fusion_block(x1: tf.SymbolicTensor, x2: tf.SymbolicTensor): tf.
 
 function upsampling(x: tf.SymbolicTensor, shape: number[], interpolation: string = "nearest"): tf.SymbolicTensor {
     if (interpolation === "nearest") {
+		// todo mzl
         // return tf.layers.lambda((t) => tf.image.resizeNearestNeighbor(t, shape)).apply(x) as tf.SymbolicTensor;
-		return tflayers.CustomCallback.bind((t) => tf.image.resizeNearestNeighbor(t, [shape[0], shape[1]])).apply(x) as tf.SymbolicTensor;
+		// return tf.layers.CustomCallback.bind((t) => tf.image.resizeNearestNeighbor(t, [shape[0], shape[1]])).apply(x) as tf.SymbolicTensor;
     
 	} else if (interpolation === "bilinear") {
-        return tflayers.CustomCallback.bind((t) => tf.image.resizeBilinear(t, [shape[0], shape[1]])).apply(x) as tf.SymbolicTensor;
+        // return tflayers.CustomCallback.bind((t) => tf.image.resizeBilinear(t, [shape[0], shape[1]])).apply(x) as tf.SymbolicTensor;
     }
-    return null;
+    return  x = tf.layers.maxPooling2d({ poolSize: [100, 100], strides: [4, 4] }).apply(x) as tf.SymbolicTensor;
+;
 }
 
 function maxpool(x: tf.SymbolicTensor, k: number = 3, s: number = 2, pad: number = 1): tf.SymbolicTensor {

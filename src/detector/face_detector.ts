@@ -1,5 +1,6 @@
 import cv2 from '@/uni_modules/zj-opencv';
-import * as np from 'numjs';
+import { Mat, MatVector} from '@/uni_modules/zj-opencv/js_sdk/opencv';
+
 
 import { S3FD } from './s3fd/s3fd_detector';
 import { FANLandmarksDetector } from './landmarks_detector';
@@ -7,9 +8,9 @@ import { FANLandmarksDetector } from './landmarks_detector';
 abstract class BaseFaceDetector {
     constructor() {}
 
-    abstract detectFace(image: cv2.Mat): any[];
+    abstract detectFace(image: Mat): any[];
 
-    batchDetectFace(image: cv2.Mat): void {
+    batchDetectFace(image: Mat): void {
         throw new Error("Method not implemented.");
     }
 }
@@ -22,12 +23,12 @@ class S3FaceDetector extends BaseFaceDetector {
         this.faceDetector = new S3FD(weightsPath);
     }
 
-    detectFace(image: cv2.Mat): any[] {
+    detectFace(image: Mat): any[] {
         // Output bbox coordinate: y0 (left), x0 (top), y1 (right), x1 (bottom)
         return this.faceDetector.detectFace(image);
     }
 
-    batchDetectFace(image: cv2.Mat): void {
+    batchDetectFace(image: Mat): void {
         // throw new Error("Method not implemented.");
     }
 }
@@ -61,11 +62,11 @@ export class FaceAlignmentDetector extends BaseFaceDetector {
         this.lmd = new FANLandmarksDetector(this.lmdWeightsPath);
     }
 
-    detectFace(image: cv2.Mat, withLandmarks: boolean = true): any[] {
+    detectFace(image: Mat, withLandmarks: boolean = true): any[] {
         let bboxList: any[] = [];
 
         if (this.fdType === "s3fd") {
-            bboxList = this.fd.detectFace(image);
+            bboxList = this.fd!.detectFace(image);
         }
 
         if (bboxList.length === 0) {
@@ -82,8 +83,8 @@ export class FaceAlignmentDetector extends BaseFaceDetector {
             }
 
             for (const bbox of bboxList) {
-                const pnts: any[] = this.lmd.detectLandmarks(image, bbox);
-                landmarksList.push(np.array(pnts));
+                const pnts: any[] = this.lmd!.detectLandmarks(image, bbox);
+                landmarksList.push([pnts]);
             }
 
             landmarksList = landmarksList.map(landmarks => this.postProcessLandmarks(landmarks));
@@ -96,25 +97,44 @@ export class FaceAlignmentDetector extends BaseFaceDetector {
         }
     }
 
-    private batchDetectFace(images: cv2.Mat[], kwargs: any) : void {
+    private batchDetectFace(images: Mat[], kwargs: any) : void {
     //     throw new Error("Method not implemented.");
     }
 
-    private preprocessS3FDBbox(bboxList: any[]): any[] {
+    private preprocessS3FDBbox(bboxList: any[]): any[][] {
         // Convert coord (y0, x0, y1, x1) to (x0, y0, x1, y1)
-        return bboxList.map(bbox => np.array([bbox[1], bbox[0], bbox[3], bbox[2], bbox[4]]));
+        return bboxList.map(bbox => [bbox[1], bbox[0], bbox[3], bbox[2], bbox[4]]);
     }
+
+	private reshapeArray(inputArray: number[], shape: number[]): number[][] {
+	  if (inputArray.length !== shape.reduce((a, b) => a * b, 1)) {
+		throw new Error('Total size of new array must be unchanged');
+	  }
+
+	  let result: number[][] = [];
+	  let index = 0;
+	  for (let i = 0; i < shape[0]; i++) {
+		let row: number[] = [];
+		for (let j = 0; j < shape[1]; j++) {
+		  row.push(inputArray[index]);
+		  index++;
+		}
+		result.push(row);
+	  }
+	  return result;
+	}
 
     private postProcessLandmarks(landmarks: any[]): any[] {
         // Process landmarks to have shape [68, 2]
-        const lms: any[][] = landmarks.map(landmark => np.array(landmark).reshape(68, 2).map(pnt => pnt.reverse()));
+		const newShape: number[] = [68, 2];
+        const lms: any[][] = landmarks.map(landmark => this.reshapeArray([landmark], newShape).map(pnt => pnt.reverse()));
         return lms;
     }
 
-    static drawLandmarks(image: cv2.Mat, landmarks: any[], color: any = new cv2.Vec3(0, 255, 0), stroke: number = 3): cv2.Mat {
+    static drawLandmarks(image: Mat, landmarks: any[], color: any = new cv2.Vec(0, 255, 0), stroke: number = 3): Mat {
         for (const landmark of landmarks) {
             const [x, y] = landmark;
-            image = cv2.circle(image.copy(), new cv2.Point(y, x), stroke, color, -1);
+            cv2.circle(image.clone(), new cv2.Point(y, x), stroke, color, -1);
         }
         return image;
     }
